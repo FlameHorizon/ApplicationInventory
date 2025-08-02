@@ -16,8 +16,12 @@ public class Inventory
     public void Start(string path)
     {
         ArgumentException.ThrowIfNullOrEmpty(path, nameof(path));
-        string solutionPath = _fs.Directory.GetFiles(Directory.GetCurrentDirectory(), "*.sln").FirstOrDefault();
-        if (solutionPath == null)
+
+        string? solutionPath = _fs.Directory
+            .GetFiles(Directory.GetCurrentDirectory(), "*.sln")
+            .FirstOrDefault();
+
+        if (solutionPath is null)
         {
             Console.WriteLine("No solution (.sln) file found.");
             return;
@@ -25,8 +29,8 @@ public class Inventory
 
         Console.WriteLine($"Reading solution: {_fs.Path.GetFileName(solutionPath)}");
 
-        var projectPaths = GetProjectPathsFromSln(solutionPath);
-        foreach (var projectPath in projectPaths)
+        List<string> projectPaths = GetProjectPathsFromSln(solutionPath);
+        foreach (string projectPath in projectPaths)
         {
             Console.WriteLine($"\nProject: {_fs.Path.GetFileName(projectPath)}");
             if (_fs.File.Exists(projectPath))
@@ -64,17 +68,31 @@ public class Inventory
 
     private void ReadProjectFile(string csprojPath)
     {
-        var doc = XDocument.Load(csprojPath);
-        var root = doc.Root;
+        XDocument doc = XDocument.Load(csprojPath);
+        XElement? root = doc.Root;
 
         string? sdk = root?.Attribute("Sdk")?.Value;
-        var ns = root?.Name.Namespace;
+        XNamespace? ns = root?.Name.Namespace;
 
-        var targetFramework = root?.Descendants(ns + "TargetFramework").FirstOrDefault()?.Value ??
-          root?.Descendants(ns + "TargetFrameworks").FirstOrDefault()?.Value;
-        var outputType = root?.Descendants(ns + "OutputType").FirstOrDefault()?.Value;
-        var assemblyName = root?.Descendants(ns + "AssemblyName").FirstOrDefault()?.Value;
-        var langVersion = root?.Descendants(ns + "LangVersion").FirstOrDefault()?.Value;
+        XName? targetFrameworkName = null;
+        XName? targetFrameworksName = null;
+        XName? outputTypeName = null;
+        XName? assemblyNameName = null;
+        XName? langVersionName = null;
+
+        if (ns is not null)
+        {
+            targetFrameworkName = ns + "TargetFramework";
+            targetFrameworksName = ns + "TargetFrameworks";
+            outputTypeName = ns + "OutputType";
+            assemblyNameName = ns + "AssemblyName";
+            langVersionName = ns + "LangVersion";
+        }
+
+        var targetFramework = root?.Descendants(targetFrameworkName).FirstOrDefault()?.Value ?? root?.Descendants(targetFrameworksName).FirstOrDefault()?.Value;
+        var outputType = root?.Descendants(outputTypeName).FirstOrDefault()?.Value;
+        var assemblyName = root?.Descendants(assemblyNameName).FirstOrDefault()?.Value;
+        var langVersion = root?.Descendants(langVersionName).FirstOrDefault()?.Value;
 
         Console.WriteLine($" -> SDK: {sdk}");
         Console.WriteLine($" -> Target Framework: {targetFramework}");
@@ -82,7 +100,15 @@ public class Inventory
         Console.WriteLine($" -> Assembly Name: {assemblyName}");
         Console.WriteLine($" -> LangVersion: {langVersion}");
 
-        var packages = root?.Descendants(ns + "PackageReference")
+        XName? packageReferenceName = null;
+        XName? projectReferenceDescendants = null;
+        if (ns is not null)
+        {
+            packageReferenceName = ns + "PackageReference";
+            projectReferenceDescendants = ns + "ProjectReference";
+        }
+
+        var packages = root?.Descendants(packageReferenceName)
           .Select(p => new
           {
               Name = p.Attribute("Include")?.Value,
@@ -98,7 +124,7 @@ public class Inventory
             }
         }
 
-        var projectRefs = root?.Descendants(ns + "ProjectReference")
+        var projectRefs = root?.Descendants(projectReferenceDescendants)
           .Select(p => p.Attribute("Include")?.Value);
 
         if (projectRefs != null && projectRefs.Any())
