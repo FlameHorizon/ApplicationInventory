@@ -3,6 +3,10 @@ using System.IO.Abstractions;
 
 public class Inventory
 {
+    // TODO: Replace logging into console to Serilog.
+
+    public readonly List<string> SolutionsFound = [];
+
     // Represents file system used. Can be swapped during testing.
     private readonly IFileSystem _fs;
 
@@ -26,6 +30,8 @@ public class Inventory
             Console.WriteLine("No solution (.sln) file found.");
             return;
         }
+
+        SolutionsFound.Add(solutionPath);
 
         Console.WriteLine($"Reading solution: {_fs.Path.GetFileName(solutionPath)}");
 
