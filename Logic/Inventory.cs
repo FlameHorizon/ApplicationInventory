@@ -5,7 +5,23 @@ public class Inventory
 {
     // TODO: Replace logging into console to Serilog.
 
+    /// <summary>
+    /// Contains list of solution after running Start method.
+    /// Each element is a path to solution.
+    /// </summary>
     public readonly List<string> SolutionsFound = [];
+
+    /// <summary>
+    /// Contains list of projects found which are referenced by the solution.
+    /// Each element is a path to a project.
+    /// </summary>
+    public readonly List<string> ProjectsFound = [];
+
+    /// <summary>
+    /// Contains a list of project related information.
+    /// Things like SDK, target framework, language version and so on.
+    /// </summary>
+    public readonly List<ProjectInfo> ProjectsInfos = [];
 
     // Represents file system used. Can be swapped during testing.
     private readonly IFileSystem _fs;
@@ -22,7 +38,7 @@ public class Inventory
         ArgumentException.ThrowIfNullOrEmpty(path, nameof(path));
 
         string? solutionPath = _fs.Directory
-            .GetFiles(Directory.GetCurrentDirectory(), "*.sln")
+            .GetFiles(path, "*.sln")
             .FirstOrDefault();
 
         if (solutionPath is null)
@@ -36,6 +52,8 @@ public class Inventory
         Console.WriteLine($"Reading solution: {_fs.Path.GetFileName(solutionPath)}");
 
         List<string> projectPaths = GetProjectPathsFromSln(solutionPath);
+        ProjectsFound.AddRange(projectPaths);
+
         foreach (string projectPath in projectPaths)
         {
             Console.WriteLine($"\nProject: {_fs.Path.GetFileName(projectPath)}");
@@ -74,7 +92,8 @@ public class Inventory
 
     private void ReadProjectFile(string csprojPath)
     {
-        XDocument doc = XDocument.Load(csprojPath);
+        FileSystemStream ts = _fs.FileStream.New(csprojPath, FileMode.Open);
+        XDocument doc = XDocument.Load(ts);
         XElement? root = doc.Root;
 
         string? sdk = root?.Attribute("Sdk")?.Value;
@@ -100,11 +119,22 @@ public class Inventory
         var assemblyName = root?.Descendants(assemblyNameName).FirstOrDefault()?.Value;
         var langVersion = root?.Descendants(langVersionName).FirstOrDefault()?.Value;
 
+        var result = new ProjectInfo();
+
         Console.WriteLine($" -> SDK: {sdk}");
+        result.Sdk = sdk;
+
         Console.WriteLine($" -> Target Framework: {targetFramework}");
+        result.TargetFramework = targetFramework;
+
         Console.WriteLine($" -> Output Type: {outputType}");
+        result.OutputType = outputType;
+
         Console.WriteLine($" -> Assembly Name: {assemblyName}");
+        result.AssemblyName = assemblyName;
+
         Console.WriteLine($" -> LangVersion: {langVersion}");
+        result.LangVersion = langVersion;
 
         XName? packageReferenceName = null;
         XName? projectReferenceDescendants = null;
@@ -127,6 +157,11 @@ public class Inventory
             foreach (var pkg in packages)
             {
                 Console.WriteLine($"    - {pkg.Name} ({pkg.Version})");
+                result.Packages.Add(new PackageInfo()
+                {
+                    Name = pkg.Name,
+                    Version = pkg.Version
+                });
             }
         }
 
@@ -138,9 +173,31 @@ public class Inventory
             Console.WriteLine(" -> Project References:");
             foreach (var projRef in projectRefs)
             {
-                var fullPath = _fs.Path.GetFullPath(_fs.Path.Combine(_fs.Path.GetDirectoryName(csprojPath)!, projRef!));
+                var fullPath = _fs.Path.GetFullPath(
+                    _fs.Path.Combine(_fs.Path.GetDirectoryName(csprojPath)!, projRef!));
+
                 Console.WriteLine($"    - {fullPath}");
+                result.ProjectReferences.Add(fullPath);
             }
         }
+
+        ProjectsInfos.Add(result);
     }
+}
+
+public class ProjectInfo
+{
+    public string? Sdk { get; internal set; }
+    public string? TargetFramework { get; internal set; }
+    public string? OutputType { get; internal set; }
+    public string? AssemblyName { get; internal set; }
+    public string? LangVersion { get; internal set; }
+    public List<PackageInfo> Packages { get; internal set; } = [];
+    public List<string> ProjectReferences { get; internal set; } = [];
+}
+
+public class PackageInfo
+{
+    public string? Name { get; internal set; }
+    public string? Version { get; internal set; }
 }
