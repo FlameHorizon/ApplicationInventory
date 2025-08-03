@@ -1,5 +1,6 @@
 ﻿using System.IO.Abstractions.TestingHelpers;
 using System.Runtime.InteropServices;
+using Logic;
 
 namespace Tests;
 

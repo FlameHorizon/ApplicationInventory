@@ -2,10 +2,10 @@
 using System.IO.Abstractions;
 using Microsoft.Extensions.Logging;
 
+namespace Logic;
+
 public class Inventory
 {
-    // TODO: Replace logging into console to Serilog.
-
     /// <summary>
     /// Contains list of solution after running Start method.
     /// Each element is a path to solution.
@@ -29,7 +29,6 @@ public class Inventory
 
     // Instance of a logger which well... logs messages.
     private readonly ILogger<Inventory> _logger;
-
 
     /// <summary>
     /// Creates instance of a class using 'real' file system
@@ -71,8 +70,20 @@ public class Inventory
         ArgumentException.ThrowIfNullOrEmpty(path, nameof(path));
 
         var result = new SolutionInfo();
+
+        string fullPath = Environment.ExpandEnvironmentVariables(path);
+
+        if (fullPath.StartsWith("~"))
+        {
+            string home = Environment.GetFolderPath(
+                    Environment.SpecialFolder.UserProfile);
+            fullPath = _fs.Path.Combine(home,
+                    fullPath.TrimStart('~')
+                    .TrimStart(Path.DirectorySeparatorChar));
+        }
+
         string? solutionPath = _fs.Directory
-            .GetFiles(path, "*.sln")
+            .GetFiles(fullPath, "*.sln")
             .FirstOrDefault();
 
         if (solutionPath is null)
@@ -124,6 +135,7 @@ public class Inventory
                 if (parts.Length >= 2)
                 {
                     var rawPath = parts[1].Trim().Trim('"');
+                    rawPath = rawPath.Replace('\\', Path.DirectorySeparatorChar);
                     var fullPath = _fs.Path.GetFullPath(
                             _fs.Path.Combine(
                                 _fs.Path.GetDirectoryName(slnPath)!, rawPath));
