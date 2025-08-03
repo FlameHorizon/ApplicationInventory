@@ -1,16 +1,31 @@
 ﻿using Logic;
 
-const string path = "~/code/ApplicationInventory";
+const string path = "/home/flm/code/Memoria";
 var inventory = new Inventory();
 SolutionInfo result = inventory.Start(path);
 
-foreach (ProjectInfo project in result.Projects) {
-  Console.WriteLine(project.Sdk);
-  Console.WriteLine(project.TargetFramework);
-  Console.WriteLine(project.OutputType);
-  Console.WriteLine(project.AssemblyName);
-  Console.WriteLine(project.LangVersion);
-  Console.WriteLine(project.Path);
+Console.WriteLine(result.SolutionPath);
+
+foreach (ProjectInfo project in result.Projects)
+{
+    Console.WriteLine(project.Path);
+    Console.WriteLine("SDK: " + project.Sdk);
+    Console.WriteLine("Target framework: " + project.TargetFramework);
+    Console.WriteLine("Output type: " + project.OutputType);
+    Console.WriteLine("Assembly name: " + project.AssemblyName);
+    Console.WriteLine("Language version: " + project.LangVersion);
+    
+    Console.WriteLine("Project References:");
+    foreach (string projectReference in project.ProjectReferences) {
+        Console.WriteLine("Reference: " + projectReference);
+    }
+
+    Console.WriteLine("Packages:");
+    foreach (PackageInfo package in project.Packages) {
+        Console.WriteLine("Name: " + package.Name + ", Version: " + package.Version);
+    }
+
+    Console.WriteLine("===");
 }
 
 // At this point you can save the result to JSON, csv, table
