@@ -1,5 +1,6 @@
 ﻿using System.Xml.Linq;
 using System.IO.Abstractions;
+using Microsoft.Extensions.Logging;
 
 public class Inventory
 {
@@ -26,9 +27,26 @@ public class Inventory
     // Represents file system used. Can be swapped during testing.
     private readonly IFileSystem _fs;
 
+    // Instance of a logger which well... logs messages.
+    private readonly ILogger<Inventory> _logger;
+
+    /// <summary>
+    /// Creates instance of a class using given file system
+    /// and logger which prints messages to console.
+    /// </summary>
     public Inventory(IFileSystem fs)
     {
         _fs = fs;
+
+        using ILoggerFactory factory = LoggerFactory
+            .Create(builder => builder.AddConsole());
+        _logger = factory.CreateLogger<Inventory>();
+    }
+
+    public Inventory(IFileSystem fs, ILogger<Inventory> logger)
+    {
+        _fs = fs;
+        _logger = logger;
     }
 
     /// <summary>Starts process of analyzing solution and attached projects to it.
@@ -43,27 +61,27 @@ public class Inventory
 
         if (solutionPath is null)
         {
-            Console.WriteLine("No solution (.sln) file found.");
+            _logger.LogWarning("No solution (.sln) file found.");
             return;
         }
 
         SolutionsFound.Add(solutionPath);
 
-        Console.WriteLine($"Reading solution: {_fs.Path.GetFileName(solutionPath)}");
+        _logger.LogInformation($"Reading solution: {_fs.Path.GetFileName(solutionPath)}");
 
         List<string> projectPaths = GetProjectPathsFromSln(solutionPath);
         ProjectsFound.AddRange(projectPaths);
 
         foreach (string projectPath in projectPaths)
         {
-            Console.WriteLine($"\nProject: {_fs.Path.GetFileName(projectPath)}");
+            _logger.LogInformation($"\nProject: {_fs.Path.GetFileName(projectPath)}");
             if (_fs.File.Exists(projectPath))
             {
                 ReadProjectFile(projectPath);
             }
             else
             {
-                Console.WriteLine(" -> Project file not found.");
+                _logger.LogInformation(" -> Project file not found.");
             }
         }
     }
@@ -121,19 +139,10 @@ public class Inventory
 
         var result = new ProjectInfo();
 
-        Console.WriteLine($" -> SDK: {sdk}");
         result.Sdk = sdk;
-
-        Console.WriteLine($" -> Target Framework: {targetFramework}");
         result.TargetFramework = targetFramework;
-
-        Console.WriteLine($" -> Output Type: {outputType}");
         result.OutputType = outputType;
-
-        Console.WriteLine($" -> Assembly Name: {assemblyName}");
         result.AssemblyName = assemblyName;
-
-        Console.WriteLine($" -> LangVersion: {langVersion}");
         result.LangVersion = langVersion;
 
         XName? packageReferenceName = null;
@@ -153,10 +162,8 @@ public class Inventory
 
         if (packages != null && packages.Any())
         {
-            Console.WriteLine(" -> NuGet Packages:");
             foreach (var pkg in packages)
             {
-                Console.WriteLine($"    - {pkg.Name} ({pkg.Version})");
                 result.Packages.Add(new PackageInfo()
                 {
                     Name = pkg.Name,
@@ -170,13 +177,11 @@ public class Inventory
 
         if (projectRefs != null && projectRefs.Any())
         {
-            Console.WriteLine(" -> Project References:");
             foreach (var projRef in projectRefs)
             {
                 var fullPath = _fs.Path.GetFullPath(
                     _fs.Path.Combine(_fs.Path.GetDirectoryName(csprojPath)!, projRef!));
 
-                Console.WriteLine($"    - {fullPath}");
                 result.ProjectReferences.Add(fullPath);
             }
         }
