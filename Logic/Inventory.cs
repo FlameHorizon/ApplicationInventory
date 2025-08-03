@@ -30,6 +30,20 @@ public class Inventory
     // Instance of a logger which well... logs messages.
     private readonly ILogger<Inventory> _logger;
 
+
+    /// <summary>
+    /// Creates instance of a class using 'real' file system
+    /// and logger which prints messages to console.
+    /// </summary>
+    public Inventory()
+    {
+        _fs = new FileSystem();
+
+        using ILoggerFactory factory = LoggerFactory
+            .Create(builder => builder.AddConsole());
+        _logger = factory.CreateLogger<Inventory>();
+    }
+
     /// <summary>
     /// Creates instance of a class using given file system
     /// and logger which prints messages to console.
@@ -49,7 +63,8 @@ public class Inventory
         _logger = logger;
     }
 
-    /// <summary>Starts process of analyzing solution and attached projects to it.
+    /// <summary>
+    /// Starts process of analyzing solution and attached projects to it.
     /// </summary>
     public void Start(string path)
     {
