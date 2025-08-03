@@ -66,10 +66,11 @@ public class Inventory
     /// <summary>
     /// Starts process of analyzing solution and attached projects to it.
     /// </summary>
-    public void Start(string path)
+    public SolutionInfo Start(string path)
     {
         ArgumentException.ThrowIfNullOrEmpty(path, nameof(path));
 
+        var result = new SolutionInfo();
         string? solutionPath = _fs.Directory
             .GetFiles(path, "*.sln")
             .FirstOrDefault();
@@ -77,10 +78,15 @@ public class Inventory
         if (solutionPath is null)
         {
             _logger.LogWarning("No solution (.sln) file found.");
-            return;
+            return new SolutionInfo();
         }
 
         SolutionsFound.Add(solutionPath);
+        // TODO: Might thing if I want to still return values 
+        // using properties. It was useful for testing but now seem
+        // not needed.
+
+        result.SolutionPath = solutionPath;
 
         _logger.LogInformation($"Reading solution: {_fs.Path.GetFileName(solutionPath)}");
 
@@ -92,13 +98,18 @@ public class Inventory
             _logger.LogInformation($"\nProject: {_fs.Path.GetFileName(projectPath)}");
             if (_fs.File.Exists(projectPath))
             {
-                ReadProjectFile(projectPath);
+                var project = ReadProjectFile(projectPath);
+                project.Path = projectPath;
+                result.Projects.Add(project);
+
             }
             else
             {
                 _logger.LogInformation(" -> Project file not found.");
             }
         }
+
+        return result;
     }
 
     private List<string> GetProjectPathsFromSln(string slnPath)
@@ -123,7 +134,7 @@ public class Inventory
         return result;
     }
 
-    private void ReadProjectFile(string csprojPath)
+    private ProjectInfo ReadProjectFile(string csprojPath)
     {
         FileSystemStream ts = _fs.FileStream.New(csprojPath, FileMode.Open);
         XDocument doc = XDocument.Load(ts);
@@ -202,7 +213,17 @@ public class Inventory
         }
 
         ProjectsInfos.Add(result);
+        return result;
     }
+}
+
+public class SolutionInfo
+{
+    public SolutionInfo()
+    { }
+
+    public string SolutionPath { get; internal set; } = "";
+    public List<ProjectInfo> Projects { get; internal set; } = [];
 }
 
 public class ProjectInfo
@@ -214,6 +235,7 @@ public class ProjectInfo
     public string? LangVersion { get; internal set; }
     public List<PackageInfo> Packages { get; internal set; } = [];
     public List<string> ProjectReferences { get; internal set; } = [];
+    public string? Path { get; internal set; }
 }
 
 public class PackageInfo

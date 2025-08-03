@@ -113,4 +113,41 @@ EndProject
         string pp = pi.ProjectReferences.First();
         Assert.Equal("/projects/Proj2/Proj2.csproj", pp);
     }
+
+    [Fact]
+    public void ProjectInfo_Should_ReturnProjectInformation()
+    {
+        string solutionContent = File.ReadAllText(
+            Path.Combine("TestData", "Sol1.sln"));
+
+        _fs.AddFile(
+            _fs.Path.Combine("projects", "Sol1.sln"),
+            new MockFileData(solutionContent));
+
+        string projectContent = File.ReadAllText(
+            Path.Combine("TestData", "Proj1.csproj"));
+
+        _fs.AddFile(
+            _fs.Path.Combine("projects", "Console", "Proj1.csproj"),
+            new MockFileData(projectContent));
+
+        SolutionInfo result = _inventory.Start("projects");
+
+        Assert.Single(result.Projects);
+        ProjectInfo pi = result.Projects.First();
+
+        Assert.Equal("Microsoft.NET.Sdk", pi.Sdk);
+        Assert.Equal("net9.0", pi.TargetFramework);
+        Assert.Equal("Exe", pi.OutputType);
+        Assert.True(string.IsNullOrEmpty(pi.LangVersion));
+
+        Assert.Single(pi.Packages);
+        PackageInfo pki = pi.Packages.First();
+        Assert.Equal("Microsoft.NET.Test.Sdk", pki.Name);
+        Assert.Equal("17.12.0", pki.Version);
+
+        Assert.Single(pi.ProjectReferences);
+        string pp = pi.ProjectReferences.First();
+        Assert.Equal("/projects/Proj2/Proj2.csproj", pp);
+    }
 }
