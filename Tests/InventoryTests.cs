@@ -142,4 +142,41 @@ public class InventoryTests {
     string pp = pi.ProjectReferences.First();
     Assert.Equal("/projects/Proj2/Proj2.csproj", pp);
   }
+
+  [Fact]
+  public void ProjectInfo_Should_ReturnProjectInformation_For_NetFrameworkProjects() {
+    string solutionContent = File.ReadAllText(
+      Path.Combine("TestData", "SolFramework.sln"));
+
+    _fs.AddFile(
+      _fs.Path.Combine("projects", "SolFramework.sln"),
+      new MockFileData(solutionContent));
+
+    string projectContent = File.ReadAllText(
+      Path.Combine("TestData", "ProjFramework.csproj"));
+
+    _fs.AddFile(
+      _fs.Path.Combine("projects", "Console", "ProjFramework.csproj"),
+      new MockFileData(projectContent));
+
+    SolutionInfo result = _inventory.Start("projects");
+
+    Assert.Single(result.Projects);
+    ProjectInfo pi = result.Projects.First();
+
+    // For the .NET Framework project this value is empty.
+    Assert.True(string.IsNullOrEmpty(pi.Sdk));
+    Assert.Equal("v3.5", pi.TargetFramework);
+    Assert.Equal("Library", pi.OutputType);
+    Assert.True(string.IsNullOrEmpty(pi.LangVersion));
+
+    Assert.Single(pi.Packages);
+    PackageInfo pki = pi.Packages.First();
+    Assert.Equal("Newtonsoft.Json", pki.Name);
+    Assert.Equal("13.0.3", pki.Version);
+
+    Assert.Single(pi.ProjectReferences);
+    string pp = pi.ProjectReferences.First();
+    Assert.Equal("/projects/Memoria.Prime/Memoria.Prime.csproj", pp);
+  }
 }

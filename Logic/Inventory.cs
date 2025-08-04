@@ -145,16 +145,21 @@ public class Inventory {
     XName? outputTypeName = null;
     XName? assemblyNameName = null;
     XName? langVersionName = null;
+    XName? targetFrameworkVersion = null;
 
     if (ns is not null) {
       targetFrameworkName = ns + "TargetFramework";
       targetFrameworksName = ns + "TargetFrameworks";
+      targetFrameworkVersion = ns + "TargetFrameworkVersion";
       outputTypeName = ns + "OutputType";
       assemblyNameName = ns + "AssemblyName";
       langVersionName = ns + "LangVersion";
     }
 
-    string? targetFramework = root?.Descendants(targetFrameworkName).FirstOrDefault()?.Value ?? root?.Descendants(targetFrameworksName).FirstOrDefault()?.Value;
+    string? targetFramework = root?.Descendants(targetFrameworkName).FirstOrDefault()?.Value
+                              ?? root?.Descendants(targetFrameworksName).FirstOrDefault()?.Value
+                              ?? root?.Descendants(targetFrameworkVersion).FirstOrDefault()?.Value;
+
     string? outputType = root?.Descendants(outputTypeName).FirstOrDefault()?.Value;
     string? assemblyName = root?.Descendants(assemblyNameName).FirstOrDefault()?.Value;
     string? langVersion = root?.Descendants(langVersionName).FirstOrDefault()?.Value;
@@ -197,10 +202,24 @@ public class Inventory {
 
     if (projectRefs != null && projectRefs.Any()) {
       foreach (string? projRef in projectRefs) {
-        string fullPath = _fs.Path.GetFullPath(
-          _fs.Path.Combine(_fs.Path.GetDirectoryName(csprojPath)!, projRef!));
+        string relativePath = projRef ?? throw new InvalidOperationException();
+        relativePath = relativePath.Replace('\\', Path.DirectorySeparatorChar);
 
-        result.ProjectReferences.Add(fullPath);
+        string fullPath = "";
+        if (relativePath.StartsWith("..")) {
+          relativePath = relativePath.TrimStart("..".ToCharArray());
+          IDirectoryInfo projectRoot = _fs.Directory.GetParent(csprojPath)!;
+          IDirectoryInfo solutionRoot = projectRoot.Parent!;
+          fullPath = solutionRoot.FullName + relativePath;
+        }
+        else {
+          fullPath = _fs.Path.GetFullPath(
+            _fs.Path.Combine(_fs.Path.GetDirectoryName(csprojPath)!, projRef!));
+        }
+
+        if (string.IsNullOrEmpty(fullPath) == false) {
+          result.ProjectReferences.Add(fullPath);
+        }
       }
     }
 
